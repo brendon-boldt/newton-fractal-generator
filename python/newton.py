@@ -3,38 +3,46 @@ from PIL import Image
 
 ITERS = 50
 LIMIT = 1e10
-SCALE = 2.0
-SIZE = (500, 500)
-
-
+SCALE = 10.0
+SIZE = (200, 200)
+STEP = 1.0
+DELTA = 1e-1
+COEFFS = [1, 0, 0, -1]
 
 def f(z):
-	return z * z + (-0.8 + 0.156j)
+	return z**3.0 - 1.0
 
-def iterate(z, f):
+def fprime(z):
+	return 3 * (z**2.0)
+
+def iterate(z):
 	for i in range(ITERS):
-		z = f(z)
+		fpz = fprime(z)
+		if fpz == 0.0:
+			return z
+		z = z - STEP * f(z)/fpz
 		if np.abs(z) > LIMIT:
-			n = i;
-			v = 1+n - np.log(np.log(np.abs(z))/np.log(LIMIT))/np.log(2);
-			return v / ITERS;
-	return -1.0
+			return LIMIT
+	return z
 
 def main():
-	arr = np.full((500,500,3), 255, dtype=np.uint8)
+	roots = np.roots(COEFFS)
+	vals = np.zeros((SIZE[0],SIZE[1]), dtype=np.float32)
+	imArr = np.full((SIZE[0],SIZE[1],3), 255, dtype=np.uint8)
 	for j in range(SIZE[1]):
 		for i in range(SIZE[0]):
 			z = SCALE * ((i/SIZE[0] - 0.5) + (0.5 - j/SIZE[1])*1.0j)
-			'''
-			if (i + j) % 100 == 0:
-				print(z)
-			'''
-			x = iterate(z, f)
-			if x < 0.0:
-				arr[j,i,2] = 0
+			x = iterate(z)
+
+			if np.abs(x - roots[0]) < DELTA:
+				imArr[j,i,0] = 0
+			elif np.abs(x - roots[1]) < DELTA:
+				imArr[j,i,0] = 80
+			elif np.abs(x - roots[2]) < DELTA:
+				imArr[j,i,0] = 160
 			else:
-				arr[j,i,0] = x * 255
-	im = Image.fromarray(arr, mode='HSV')
+				imArr[j,i,2] = 0
+	im = Image.fromarray(imArr, mode='HSV')
 	im.show()
 
 
