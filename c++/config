@@ -1,0 +1,12 @@
+100
+1e5 1e-4
+500 500
+2.0 0.7 1.0
+1.0 0.5
+
+c.iters = 20;
+c.limit = 1e3;
+c.height = 500;
+c.width = 500;
+c.delta = 1e-1;
+c.step = C(1.0, 1.0);
