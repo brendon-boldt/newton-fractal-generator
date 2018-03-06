@@ -84,6 +84,8 @@ vector<C> findRoots(vector<C> coeffs) {
 	return z
 */
 
+int above_limit = 0, no_root = 0;
+
 tuple<C, C, int, int> iterate(const CONFIG & c, const vector<C> & roots, C z) {
 	C fpz, z_prev = z;
 	double slope_delta = 1/c.limit;
@@ -101,9 +103,12 @@ tuple<C, C, int, int> iterate(const CONFIG & c, const vector<C> & roots, C z) {
 			if (abs(roots[r_i] - z) < c.delta)
 				return make_tuple(z, z_prev, r_i, i);
 		}
-		if (abs(z) > c.limit)
+		if (abs(z) > c.limit) {
+			above_limit++;
 			break;
+		}
 	}
+	no_root++;
 	return make_tuple(z, z_prev, -1, i);
 }
 
@@ -145,16 +150,21 @@ void plot(const CONFIG & c) {
 
 			double smooth = (log(c.delta) - log(abs(roots[r_i] - z_prev)))
 				/ (log(abs(roots[r_i] - z)) - log(abs(roots[r_i] - z_prev)));
+			smooth = max(smooth, 1e-6);
 			double c_speed = 1.0 - c.color_range 
 				* c.color_scale*((double) log(iters+smooth)/log(c.iters));
-			c_speed = pow(min(1.0, max(0.0, c_speed)), c.color_power);
+			c_speed = min(1.0, max(0.0, c_speed));
+			c_speed = pow(c_speed, c.color_power);
 
-			//double c_speed = 1.0;
 			if (r_i >= 0) {
-				visu(i,j,min(r_i, 2)) = c_speed * 255;
+				visu(i,j,min(r_i, 2)) =  c_speed * 255;
+				//visu(i,j,min(r_i, 2)) = 255;
 			}
 		}
 	}
+
+	cout << "Points with no root:\t" << no_root << endl;
+	cout << "Points above limit:\t" << above_limit << endl;
 
 	cimg_library::CImgDisplay main_disp(visu, "test");
 
