@@ -1,12 +1,16 @@
-500
-1e5 1e-1
-500 500
-1.0 0.4 0.5
+1000
+1e8 8e-2
+512 512 3.0
+0.0 0.0
+1.0 0.5 1.0
 1.0 1.0
 
-c.iters = 20;
-c.limit = 1e3;
-c.height = 500;
-c.width = 500;
-c.delta = 1e-1;
-c.step = C(1.0, 1.0);
+cin >>
+	c.iters >>
+	c.limit >> c.delta >>
+	c.width >> c.height >>
+	c.scale >>
+	c.center_x >> c.center_y >>
+	c.color_scale >> c.color_range >> c.color_power;
+double x,y;
+cin >> x >> y;
