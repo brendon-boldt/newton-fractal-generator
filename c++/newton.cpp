@@ -6,9 +6,12 @@
 #include <vector>
 #include <iostream>
 #include <string>
+#include <mutex>
 
 //using namespace cimg_library;
 using namespace std;
+
+mutex mtx;
 
 typedef std::complex<double> C;
 
@@ -112,13 +115,14 @@ tuple<C, C, int, int> iterate(const CONFIG & c, const vector<C> & roots, C z) {
 */
 
 
-void plot(const CONFIG & c, string filename) {
+void plot(int type, const CONFIG & c, string filename) {
 	above_limit = 0;
 	no_root = 0;
 
 	cimg_library::CImg<float> visu(c.width, c.height, 1, 3, 0);
 	cimg_library::CImg<unsigned char> rgb_img(c.width, c.height, 1, 3, 0);
-	vector< vector<C> > vals(c.height, vector<C>(c.width));
+	vector< vector< tuple<C,C,int,int> > >
+		vals(c.height, vector< tuple<C,C,int,int> >(c.width));
 
 	vector<C> coeffs;
 	coeffs.push_back(C(-1,0));
@@ -130,6 +134,7 @@ void plot(const CONFIG & c, string filename) {
 		//cout << i << " ";
 	//cout << endl;
 
+	vector<unsigned int> iterCounter(c.iters, 0);
 
 	#pragma omp parallel for
 	for (int j = 0; j < c.height; ++j) {
@@ -137,20 +142,46 @@ void plot(const CONFIG & c, string filename) {
 			//z = SCALE * ((i/SIZE[0] - 0.5) + (0.5 - j/SIZE[1])*1.0j)
 			double x = c.center_x + (1.0*c.width/c.height) * c.scale * ((double) i/c.width - 0.5);
 			double y = -(c.center_y + c.scale * ((double) j/c.height - 0.5));
-			tuple<C, C, int, int> res = iterate(c, roots, C(x,y));
-			//C z = res.first;
-			C z = get<0>(res);
-			C z_prev = get<1>(res);
-			//int iters = res.second;
-			int r_i = get<2>(res);
-			int iters = get<3>(res);
+			//tuple<C, C, int, int> res = iterate(c, roots, C(x,y));
+			vals[i][j] = iterate(c, roots, C(x,y));
+			if (get<2>(vals[i][j]) >= 0) {
+				mtx.lock();
+				iterCounter[get<3>(vals[i][j])] += 1;
+				mtx.unlock();
+			}
+			else {
+				mtx.lock();
+				iterCounter[c.iters-1] += 1;
+				mtx.unlock();
+			}
+		}
+	}
+
+	unsigned int total = 0;
+	for (int i = 0; i < c.iters; ++i) {
+		total += iterCounter[i];
+		iterCounter[i] = c.width * c.height - total;
+	}
+
+	#pragma omp parallel for
+	for (int j = 0; j < c.height; ++j) {
+		for (int i = 0; i < c.width; ++i) {
+			C z = get<0>(vals[i][j]);
+			C z_prev = get<1>(vals[i][j]);
+			int r_i = get<2>(vals[i][j]);
+			int iters = get<3>(vals[i][j]);
 
 			double smooth = (log(c.delta) - log(abs(roots[r_i] - z_prev)))
 				/ (log(abs(roots[r_i] - z)) - log(abs(roots[r_i] - z_prev)));
 			smooth = min(1.0, max(smooth, 0.0));
-			double c_speed = 1.0 - c.color_scale*(log(iters+smooth)/log(c.iters+1));
+			//double c_speed = 1.0 - c.color_scale*(log(iters+smooth)/log(c.iters+1));
+			//double weighted = iterCounter[iters]*smooth + iterCounter[max(iters-1,0)]*(1-smooth);
+			double weighted = iterCounter[iters]*(1-smooth) +
+				iterCounter[min(iters+1,(int)iterCounter.size()-1)]*smooth;
+			double iterSmooth = (weighted/2) / (c.height*c.width);
+			double c_speed = 1.0 + c.color_range*(iterSmooth - 1);
 			c_speed = min(1.0, max(0.0, c_speed));
-			c_speed = pow(c_speed, c.color_power);
+			//c_speed = pow(c_speed, c.color_power);
 
 			if (r_i >= 0) {
 				//visu(i,j,min(r_i, 2)) =  c_speed * 255;
@@ -161,27 +192,26 @@ void plot(const CONFIG & c, string filename) {
 		}
 	}
 
-	//cout << "Points with no root:\t" << no_root << endl;
-	//cout << "Points above limit:\t" << above_limit << endl;
 
 	rgb_img = visu.HSVtoRGB();
 	rgb_img.save_png(filename.c_str());
 
-	/*
-	cimg_library::CImgDisplay main_disp(rgb_img, "test");
-	while (!main_disp.is_closed()) {
-		main_disp.wait();
+	if (type == 0) {
+		cout << "Points with no root:\t" << no_root << endl;
+		cout << "Points above limit:\t" << above_limit << endl;
+		cimg_library::CImgDisplay main_disp(rgb_img, "test");
+		while (!main_disp.is_closed()) {
+			main_disp.wait();
+		}
 	}
-	 */
 }
-
-void plot(const CONFIG & c) {
-	plot(c, "out.png");
-}
-
 
 
 int main() {
+	// 0 - still image, 1 - animation
+	int type;
+	cin >> type;
+
 	CONFIG c;
 	cin >>
 		c.iters >>
@@ -189,19 +219,27 @@ int main() {
 		c.width >> c.height >>
 		c.scale >>
 		c.center_x >> c.center_y >>
-		c.color_scale >> c.color_range >> c.color_power;
+		c.color_range;
 	double x,y;
 	cin >> x >> y;
 	c.step = C(x,y);
 
-	//plot(c);
-
-	//return 0;
-	string prefix = string("ani/frame_");
-	for (int i = 0; i < 60; i++) {
-		cout << "Generating frame: " << i << endl;
-		c.step = C(1.3, i * 1.0/60);
-		plot(c, prefix + to_string(i));
+	switch (type) {
+	case 0: {
+		plot(type, c, "out.png");
+		break;
+	}
+	case 1: {
+		string prefix = string("ani/frame_");
+		for (int i = 0; i < 60; i++) {
+			cout << "Generating frame: " << i << endl;
+			c.step = C(1.3, i * 1.0/60);
+			plot(type, c, prefix + to_string(i));
+		}
+		break;
+	}
+	default:
+		break;
 	}
 
 	return 0;
