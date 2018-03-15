@@ -1,4 +1,3 @@
-//#include <cstdlib>
 #include "CImg-2.2.0/CImg.h"
 #include <complex>
 #include <cmath>
@@ -7,6 +6,8 @@
 #include <iostream>
 #include <string>
 #include <mutex>
+
+#include "f.h"
 
 //using namespace cimg_library;
 using namespace std;
@@ -30,26 +31,46 @@ struct CONFIG {
 	double color_power;
 };
 
-C f(C z) {
-	return pow(z, 3) - 1.0;
+/*
+inline C poly(const vector<C> & coeffs, const C & z) {
+	C val = C(0.0,0.0);
+	for (int i = 0; i < coeffs.size(); ++i)
+		val += pow(coeffs[i],i); 
+	return val;
 }
 
-C fprime(C z) {
-	return 3.0 * pow(z, 2);
+vector<C> deriv(const vector<C> & coeffs) {
+	vector<C> coeffsP(coeffs.size()-1);
+	for (int i = 0; i < coeffs.size()-1; ++i) {
+		coeffsP[i] = coeffs[i+1] * C(i+1,0.0);
+	}
+	return coeffsP;
+}
+*/
+double fRand(double fMin, double fMax)
+{
+    double f = (double)rand() / RAND_MAX;
+    return fMin + f * (fMax - fMin);
 }
 
-vector<C> findRoots(vector<C> coeffs) {
-	int num_points = 100;
+vector<C> findRoots(
+		const double xMin,
+		const double xMax,
+		const double yMin,
+		const double yMax) {
+	int num_points = 300;
 	int iters = 1000;
 	C newton_step = C(1.0, 0.0);
 	double limit = 1e6;
 	vector<C> roots;
 	for (int i = 0; i < num_points; i++) {
+		C z = C(fRand(xMin, xMax), fRand(yMin, yMax));
 		C fpz;
-		C z = exp(C(0.0, i * 2 * M_PI / num_points));
+		//C z = exp(C(0.0, i * 2 * M_PI / num_points));
+
+
 		for (int j = 0; j < iters; j++) {
 			fpz = fprime(z);
-			//if (abs(fpz) < slope_delta)
 			z = z - newton_step * f(z)/fpz;
 			if (abs(z) > limit) break;
 		}
@@ -81,13 +102,15 @@ vector<C> findRoots(vector<C> coeffs) {
 
 int above_limit = 0, no_root = 0;
 
-tuple<C, C, int, int> iterate(const CONFIG & c, const vector<C> & roots, C z) {
+tuple<C, C, int, int> iterate(
+		const CONFIG & c,
+		const vector<C> & roots,
+		C z) {
 	C fpz, z_prev = z;
 	double slope_delta = 1/c.limit;
 	int i;
 	for (i = 0; i < c.iters; ++i) {
 		fpz = fprime(z);
-		//if (abs(fpz) < slope_delta)
 		if (abs(fpz) == 0)
 			fpz = 1e-8;
 
@@ -109,9 +132,7 @@ tuple<C, C, int, int> iterate(const CONFIG & c, const vector<C> & roots, C z) {
 
 /*
  * TODO:
- * variable coloring
  * click to zoom
- * extended root sampling
 */
 
 
@@ -124,15 +145,23 @@ void plot(int type, const CONFIG & c, string filename) {
 	vector< vector< tuple<C,C,int,int> > >
 		vals(c.height, vector< tuple<C,C,int,int> >(c.width));
 
-	vector<C> coeffs;
-	coeffs.push_back(C(-1,0));
-	coeffs.push_back(C(0,0));
-	coeffs.push_back(C(0,0));
-	coeffs.push_back(C(3,0));
-	vector<C> roots = findRoots(coeffs);
+	double xMin = c.center_x + (1.0*c.width/c.height) * c.scale * (-0.5);
+	double xMax = c.center_x + (1.0*c.width/c.height) * c.scale * (0.5);
+	double yMin = -(c.center_y + c.scale * (-0.5));
+	double yMax = -(c.center_y + c.scale * (0.5));
+	vector<C> roots = findRoots(xMin, xMax, yMin, yMax);
+	/*
+	for (auto i : coeffs)
+		cout << i << " ";
+	cout << endl;
+	for (auto i : coeffsP)
+		cout << i << " ";
+	cout << endl;
+	return;
 	//for (auto i : roots)
 		//cout << i << " ";
 	//cout << endl;
+	 */
 
 	vector<unsigned int> iterCounter(c.iters, 0);
 
@@ -143,6 +172,7 @@ void plot(int type, const CONFIG & c, string filename) {
 			double x = c.center_x + (1.0*c.width/c.height) * c.scale * ((double) i/c.width - 0.5);
 			double y = -(c.center_y + c.scale * ((double) j/c.height - 0.5));
 			//tuple<C, C, int, int> res = iterate(c, roots, C(x,y));
+			//vals[i][j] = iterate(c, coeffs, coeffsP, roots, C(x,y));
 			vals[i][j] = iterate(c, roots, C(x,y));
 			if (get<2>(vals[i][j]) >= 0) {
 				mtx.lock();
@@ -194,6 +224,9 @@ void plot(int type, const CONFIG & c, string filename) {
 
 
 	rgb_img = visu.HSVtoRGB();
+	cout << "Blurring" << endl;
+	rgb_img.blur(0.6);
+	//rgb_img.blur_anisotropic(50.0);
 	rgb_img.save_png(filename.c_str());
 
 	if (type == 0) {
