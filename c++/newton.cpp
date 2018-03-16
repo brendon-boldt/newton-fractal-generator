@@ -12,7 +12,6 @@
 //using namespace cimg_library;
 using namespace std;
 
-mutex mtx;
 
 typedef std::complex<double> C;
 
@@ -53,38 +52,62 @@ double fRand(double fMin, double fMax)
     return fMin + f * (fMax - fMin);
 }
 
-vector<C> findRoots(
-		const double xMin,
-		const double xMax,
-		const double yMin,
-		const double yMax) {
-	int num_points = 300;
-	int iters = 1000;
-	C newton_step = C(1.0, 0.0);
-	double limit = 1e6;
+double getX(const CONFIG & c, int i) {
+	return c.center_x + (1.0*c.width/c.height) * c.scale * ((double) i/c.width - 0.5);
+}
+
+double getY(const CONFIG & c, int j) {
+	return c.center_y - c.scale * ((double) j/c.height - 0.5);
+}
+
+
+vector<C> findRoots(const CONFIG & c) {
+	mutex mtx;
+
+	const double xMin = getX(c, 0);
+	const double xMax = getX(c, c.width);
+	const double yMin = getY(c, c.height);
+	const double yMax = getY(c, 0);
+	const int num_points = c.height * c.width / 10;
+	//cout << xMin << " " << xMax << " " << yMin << " " << yMax << endl;
 	vector<C> roots;
+
+
+	#pragma omp parallel for
 	for (int i = 0; i < num_points; i++) {
 		C z = C(fRand(xMin, xMax), fRand(yMin, yMax));
 		C fpz;
-		//C z = exp(C(0.0, i * 2 * M_PI / num_points));
 
 
-		for (int j = 0; j < iters; j++) {
+		for (int j = 0; j < c.iters; j++) {
 			fpz = fprime(z);
-			z = z - newton_step * f(z)/fpz;
-			if (abs(z) > limit) break;
+			z = z - c.step * f(z)/fpz;
+			//if (abs(z) > limit) break;
+			if (abs(z) > c.limit) j = c.iters;
 		}
-		if (abs(z) > limit) break;
 		bool root_found = false;
 		for (int r_i = 0; r_i < roots.size(); ++r_i) {
-			if (abs(z - roots[r_i]) < 1/limit) {
+			if (abs(z - roots[r_i]) < c.delta) {
 				root_found = true;
 				break;
 			}
 		}
 		if (!root_found) {
+			mtx.lock();
 			roots.push_back(z);
+			mtx.unlock();
 		}
+	}
+	// Side effect of of parallelizing the above loop is
+	// getting repeat roots. Filter time!
+	for (int i = 0; i < roots.size()-1; ++i) {
+	    for (int j = i+1; j < roots.size(); ++j) {
+		if (abs(roots[i] - roots[j]) < c.delta) {
+		    roots.erase(roots.begin()+j);
+		    --j;
+		    continue;
+		}
+	    }
 	}
 	return roots;
 }
@@ -135,8 +158,8 @@ tuple<C, C, int, int> iterate(
  * click to zoom
 */
 
-
-void plot(int type, const CONFIG & c, string filename) {
+void plot(int type, CONFIG & c, string filename) {
+	mutex mtx;
 	above_limit = 0;
 	no_root = 0;
 
@@ -145,11 +168,11 @@ void plot(int type, const CONFIG & c, string filename) {
 	vector< vector< tuple<C,C,int,int> > >
 		vals(c.height, vector< tuple<C,C,int,int> >(c.width));
 
-	double xMin = c.center_x + (1.0*c.width/c.height) * c.scale * (-0.5);
-	double xMax = c.center_x + (1.0*c.width/c.height) * c.scale * (0.5);
-	double yMin = -(c.center_y + c.scale * (-0.5));
-	double yMax = -(c.center_y + c.scale * (0.5));
-	vector<C> roots = findRoots(xMin, xMax, yMin, yMax);
+	double xMin = getX(c, 0);
+	double xMax = getX(c, c.width);
+	double yMin = getY(c, c.height);
+	double yMax = getY(c, 0);
+	vector<C> roots = findRoots(c);
 	/*
 	for (auto i : coeffs)
 		cout << i << " ";
@@ -158,22 +181,24 @@ void plot(int type, const CONFIG & c, string filename) {
 		cout << i << " ";
 	cout << endl;
 	return;
-	//for (auto i : roots)
-		//cout << i << " ";
-	//cout << endl;
 	 */
+	for (auto i : roots)
+		cout << i << " ";
+	cout << endl;
 
 	vector<unsigned int> iterCounter(c.iters, 0);
 
 	#pragma omp parallel for
 	for (int j = 0; j < c.height; ++j) {
 		for (int i = 0; i < c.width; ++i) {
-			//z = SCALE * ((i/SIZE[0] - 0.5) + (0.5 - j/SIZE[1])*1.0j)
-			double x = c.center_x + (1.0*c.width/c.height) * c.scale * ((double) i/c.width - 0.5);
-			double y = -(c.center_y + c.scale * ((double) j/c.height - 0.5));
-			//tuple<C, C, int, int> res = iterate(c, roots, C(x,y));
-			//vals[i][j] = iterate(c, coeffs, coeffsP, roots, C(x,y));
-			vals[i][j] = iterate(c, roots, C(x,y));
+			//double z_x = c.center_x + (1.0*c.width/c.height) * c.scale * ((double) i/c.width - 0.5);
+			double z_x = getX(c, i);
+			//double x = c.center_x +
+				//(xMax * (double)i/c.width + xMin * (1 - (double)i/c.width))/2;
+			//double y = c.center_y +
+				//(yMax * (double)j/c.height + yMin * (1 - (double)j/c.height))/2;
+			double z_y = getY(c, j);
+			vals[i][j] = iterate(c, roots, C(z_x,z_y));
 			if (get<2>(vals[i][j]) >= 0) {
 				mtx.lock();
 				iterCounter[get<3>(vals[i][j])] += 1;
@@ -224,21 +249,44 @@ void plot(int type, const CONFIG & c, string filename) {
 
 
 	rgb_img = visu.HSVtoRGB();
-	cout << "Blurring" << endl;
 	rgb_img.blur(0.6);
 	//rgb_img.blur_anisotropic(50.0);
 	rgb_img.save_png(filename.c_str());
 
 	if (type == 0) {
-		cout << "Points with no root:\t" << no_root << endl;
-		cout << "Points above limit:\t" << above_limit << endl;
+		//cout << "Points with no root:\t" << no_root << endl;
+		//cout << "Points above limit:\t" << above_limit << endl;
 		cimg_library::CImgDisplay main_disp(rgb_img, "test");
+		unsigned int button;
 		while (!main_disp.is_closed()) {
 			main_disp.wait();
+			button = main_disp.button();
+			double new_center_x = getX(c, main_disp.mouse_x());
+			double new_center_y = getY(c, main_disp.mouse_y());
+			//cout << main_disp.mouse_x() << " " << main_disp.mouse_y() << endl;
+			const double zoom = 2.0;
+			if (button != 0) {
+				c.center_x = new_center_x;
+				c.center_y = new_center_y;
+				cout << "New center: " << new_center_x
+					<< ", " << new_center_y
+					<< " x" << c.scale
+					<< " d @ " << c.delta << endl;
+				if (button == 1) {
+					c.scale /= zoom;
+					//c.limit /= zoom; 
+					//c.delta /= zoom;
+				} else if (button == 2) {
+					c.scale *= zoom;
+					//c.limit *= zoom; 
+					//c.delta *= zoom;
+				}
+				main_disp.close();
+				return plot(type, c, filename.c_str());
+			}
 		}
 	}
 }
-
 
 int main() {
 	// 0 - still image, 1 - animation

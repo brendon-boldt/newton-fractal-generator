@@ -1,5 +1,8 @@
 make:
 	g++ newton.cpp f.cpp -lpthread -lX11 -std=c++14 -fopenmp
+	
+g:
+	g++ newton.cpp f.cpp -lpthread -lX11 -std=c++14 -fopenmp -g
 
 o:
 	g++ newton.cpp f.cpp -lpthread -lX11 -std=c++14 -fopenmp -01
