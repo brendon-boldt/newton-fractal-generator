@@ -6,11 +6,18 @@
 #include <iostream>
 #include <string>
 #include <mutex>
+#include <algorithm>
 
 #include "f.h"
 
 //using namespace cimg_library;
 using namespace std;
+
+/*
+ * TODO:
+ * Root sorting
+ * Optimal coloring
+*/
 
 
 typedef std::complex<double> C;
@@ -29,6 +36,49 @@ struct CONFIG {
 	double color_range;
 	double color_power;
 };
+
+// This is slow, but it is being used for short lists
+//function<bool (C, C)> make_c_lt(double delta) {
+auto make_c_lt(const double& delta) {
+    return [&](const C& z1, const C& z2) {
+	if (abs(abs(z1) - abs(z2)) < delta) {
+	    if (abs(z1.real() - z2.real()) < delta) {
+		return z1.imag() < z2.imag();
+	    } else {
+		return z1.real() < z2.real();
+	    }
+	} else {
+	    return abs(z1) < abs(z2);
+	}
+    };
+}
+
+	/*
+struct complex_less_than {
+    inline bool operator() (const C& z1, const C& z2) {
+	if (abs(z1 - z2) < delta) {
+	    if (abs(z1.real() - z2.real()) < delta) {
+		return z1.imag() < z2.imag();
+	    } else {
+		return z1.real() < z2.real();
+	    }
+	} else {
+	    return abs(z1) < abs(z2);
+	}
+	if (abs(z1) < abs(z2))
+	    return true;
+	else if (abs(z1) > abs(z2))
+	    return false;
+	else if (z1.real() < z2.real())
+	    return true;
+	else if (z1.real() > z2.real())
+	    return false;
+	else if (z1.imag() < z2.imag())
+	    return true;
+	return false;
+    }
+};
+	*/
 
 /*
 inline C poly(const vector<C> & coeffs, const C & z) {
@@ -59,7 +109,6 @@ double getX(const CONFIG & c, int i) {
 double getY(const CONFIG & c, int j) {
 	return c.center_y - c.scale * ((double) j/c.height - 0.5);
 }
-
 
 vector<C> findRoots(const CONFIG & c) {
 	mutex mtx;
@@ -153,11 +202,6 @@ tuple<C, C, int, int> iterate(
 	return make_tuple(z, z_prev, -1, i);
 }
 
-/*
- * TODO:
- * click to zoom
-*/
-
 void plot(int type, CONFIG & c, string filename) {
 	mutex mtx;
 	above_limit = 0;
@@ -173,6 +217,8 @@ void plot(int type, CONFIG & c, string filename) {
 	double yMin = getY(c, c.height);
 	double yMax = getY(c, 0);
 	vector<C> roots = findRoots(c);
+	//sort(roots.begin(), roots.end(), complex_less_than());
+	sort(roots.begin(), roots.end(), make_c_lt(c.delta));
 	/*
 	for (auto i : coeffs)
 		cout << i << " ";
@@ -181,22 +227,17 @@ void plot(int type, CONFIG & c, string filename) {
 		cout << i << " ";
 	cout << endl;
 	return;
-	 */
 	for (auto i : roots)
 		cout << i << " ";
 	cout << endl;
+	 */
 
 	vector<unsigned int> iterCounter(c.iters, 0);
 
 	#pragma omp parallel for
 	for (int j = 0; j < c.height; ++j) {
 		for (int i = 0; i < c.width; ++i) {
-			//double z_x = c.center_x + (1.0*c.width/c.height) * c.scale * ((double) i/c.width - 0.5);
 			double z_x = getX(c, i);
-			//double x = c.center_x +
-				//(xMax * (double)i/c.width + xMin * (1 - (double)i/c.width))/2;
-			//double y = c.center_y +
-				//(yMax * (double)j/c.height + yMin * (1 - (double)j/c.height))/2;
 			double z_y = getY(c, j);
 			vals[i][j] = iterate(c, roots, C(z_x,z_y));
 			if (get<2>(vals[i][j]) >= 0) {
@@ -229,17 +270,13 @@ void plot(int type, CONFIG & c, string filename) {
 			double smooth = (log(c.delta) - log(abs(roots[r_i] - z_prev)))
 				/ (log(abs(roots[r_i] - z)) - log(abs(roots[r_i] - z_prev)));
 			smooth = min(1.0, max(smooth, 0.0));
-			//double c_speed = 1.0 - c.color_scale*(log(iters+smooth)/log(c.iters+1));
-			//double weighted = iterCounter[iters]*smooth + iterCounter[max(iters-1,0)]*(1-smooth);
 			double weighted = iterCounter[iters]*(1-smooth) +
 				iterCounter[min(iters+1,(int)iterCounter.size()-1)]*smooth;
 			double iterSmooth = (weighted/2) / (c.height*c.width);
 			double c_speed = 1.0 + c.color_range*(iterSmooth - 1);
 			c_speed = min(1.0, max(0.0, c_speed));
-			//c_speed = pow(c_speed, c.color_power);
 
 			if (r_i >= 0) {
-				//visu(i,j,min(r_i, 2)) =  c_speed * 255;
 				visu(i,j,0) = 360.0 * r_i / roots.size();
 				visu(i,j,1) = 1.0;
 				visu(i,j,2) = c_speed;
@@ -250,7 +287,6 @@ void plot(int type, CONFIG & c, string filename) {
 
 	rgb_img = visu.HSVtoRGB();
 	rgb_img.blur(0.6);
-	//rgb_img.blur_anisotropic(50.0);
 	rgb_img.save_png(filename.c_str());
 
 	if (type == 0) {
@@ -263,7 +299,6 @@ void plot(int type, CONFIG & c, string filename) {
 			button = main_disp.button();
 			double new_center_x = getX(c, main_disp.mouse_x());
 			double new_center_y = getY(c, main_disp.mouse_y());
-			//cout << main_disp.mouse_x() << " " << main_disp.mouse_y() << endl;
 			const double zoom = 2.0;
 			if (button != 0) {
 				c.center_x = new_center_x;
@@ -307,14 +342,15 @@ int main() {
 
 	switch (type) {
 	case 0: {
-		plot(type, c, "out.png");
+		plot(type, c, "out.bmp");
 		break;
 	}
 	case 1: {
 		string prefix = string("ani/frame_");
 		for (int i = 0; i < 60; i++) {
 			cout << "Generating frame: " << i << endl;
-			c.step = C(1.3, i * 1.0/60);
+			//c.step = C(1.3, i * 1.0/60);
+			c.step = C((i+1) * 1.5/60, 0.);
 			plot(type, c, prefix + to_string(i));
 		}
 		break;
