@@ -8,7 +8,41 @@ typedef std::complex<double> C;
 const C a = C(2.0,-1.0);
 const C b = C(1.0,-1.0);
 
+/* Homework
+C f(const C & z) {
+	return
+		pow(z, 5) +
+		pow(z, 4) * -2. +
+		pow(z, 3) * 4. +
+		pow(z, 2) * -1. +
+		z * 3. +
+		- 2.;
+}
+C fprime(const C & z) {
+	return
+		pow(z, 4)*5. +
+		pow(z, 3)*4. * -2. +
+		pow(z, 2)*3. * 4. +
+		z * -2. +
+		3.;
+}
+ */
 
+/*
+C f(const C & z) {
+	return pow(z, 2) + sin(10.*z);
+}
+C fprime(const C & z) {
+	return 2.*z + 10.*cos(10.*z);
+}
+ */
+
+C f(const C & z) {
+	return pow(z, 2) + sin(10.*z);
+}
+C fprime(const C & z) {
+	return 2.*z + 10.*cos(10.*z);
+}
 /* Interesting sin
 C f(const C & z) {
 	return pow(z, 2) + sin(10.*z);
@@ -17,6 +51,7 @@ C fprime(const C & z) {
 	return 2.*z + 10.*cos(10.*z);
 }
  */
+
 /* Weird
 C f(const C & z) {
 	return pow(z, 3.1) - 1.0;
@@ -29,8 +64,10 @@ C fprime(const C & z) {
 C f(const C & z) { return pow(z, 3) - 1.0; }
 C fprime(const C & z) { return 3.0 * pow(z, 2); }
  */
-C f(const C & z) { return pow(z, 3) - 1.0; }
-C fprime(const C & z) { return 3.0 * pow(z, 2); }
+/*
+C f(const C & z) { return pow(z, 7) - 1.0; }
+C fprime(const C & z) { return 7.0 * pow(z, 6); }
+*/
 
 /*
 C f(const C & z) { return pow(z, 5) + 1.0; }

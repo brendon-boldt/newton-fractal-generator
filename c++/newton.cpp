@@ -210,7 +210,7 @@ void plot(int type, CONFIG & c, string filename) {
 	cimg_library::CImg<float> visu(c.width, c.height, 1, 3, 0);
 	cimg_library::CImg<unsigned char> rgb_img(c.width, c.height, 1, 3, 0);
 	vector< vector< tuple<C,C,int,int> > >
-		vals(c.height, vector< tuple<C,C,int,int> >(c.width));
+		vals(c.width, vector< tuple<C,C,int,int> >(c.height));
 
 	double xMin = getX(c, 0);
 	double xMax = getX(c, c.width);
@@ -259,7 +259,7 @@ void plot(int type, CONFIG & c, string filename) {
 		iterCounter[i] = c.width * c.height - total;
 	}
 
-	#pragma omp parallel for
+	//#pragma omp parallel for
 	for (int j = 0; j < c.height; ++j) {
 		for (int i = 0; i < c.width; ++i) {
 			C z = get<0>(vals[i][j]);
@@ -303,10 +303,6 @@ void plot(int type, CONFIG & c, string filename) {
 			if (button != 0) {
 				c.center_x = new_center_x;
 				c.center_y = new_center_y;
-				cout << "New center: " << new_center_x
-					<< ", " << new_center_y
-					<< " x" << c.scale
-					<< " d @ " << c.delta << endl;
 				if (button == 1) {
 					c.scale /= zoom;
 					//c.limit /= zoom; 
@@ -316,6 +312,11 @@ void plot(int type, CONFIG & c, string filename) {
 					//c.limit *= zoom; 
 					//c.delta *= zoom;
 				}
+				cout << "New center: "
+					<< " " << c.scale
+					<< " " << new_center_x
+					<< " " << new_center_y
+					<< " d @ " << c.delta << endl;
 				main_disp.close();
 				return plot(type, c, filename.c_str());
 			}
