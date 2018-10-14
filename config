@@ -1,0 +1,19 @@
+0
+700
+1e17 8e-7
+512 512 3.0
+0.0 0.0
+0.5
+1.0 0.5
+
+Try going from 3.1 -> 3.2 ...
+
+cin >>
+	c.iters >>
+	c.limit >> c.delta >>
+	c.width >> c.height >>
+	c.scale >>
+	c.center_x >> c.center_y >>
+	c.color_scale >> c.color_range >> c.color_power;
+double x,y;
+cin >> x >> y;
