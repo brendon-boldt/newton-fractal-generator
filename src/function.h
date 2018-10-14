@@ -2,8 +2,6 @@
 
 typedef std::complex<double> C;
 
-/*
- */
 C f(const C & z);
 C fprime(const C & z);
 

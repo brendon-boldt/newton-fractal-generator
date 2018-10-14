@@ -1,3 +1,3 @@
 #!/bin/bash
 
-bin/./fractal.out < config
+./generator.out < config

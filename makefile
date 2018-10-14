@@ -1,14 +1,38 @@
-make:
-	g++ src/*.cpp -lpthread -lX11 -std=c++14 -fopenmp -o bin/fractal.out
+.PHONY: o1 o2 o3 debug clean
+
+CXX=g++
+CXXFLAGS=-lpthread -lX11 -std=c++14 -fopenmp
+DEPS = src/function.h
+OBJ = bin/function.o bin/generator.o
+EXECUTABLE = generator.out
+O_LEVEL = 
+
+help:		## Show this help.
+	@fgrep -h "##" $(MAKEFILE_LIST) | fgrep -v fgrep | sed -e 's/\\$$//' | sed -e 's/##//'
+
+make:		## Build executable with no flags
+make: $(EXECUTABLE)
+
+bin/%.o: src/%.cpp $(DEPS)
+	$(CXX) -c -o $@ $< $(CXXFLAGS)
+
+$(EXECUTABLE): $(OBJ)
+	$(CXX) -o $@ $^ $(CXXFLAGS)
+
+clean:		## Remove files from build process
+clean:
+	$(RM) $(EXECUTABLE) bin/*
 	
-g:
-	g++ newton.cpp f.cpp -lpthread -lX11 -std=c++14 -fopenmp -g
+o1:		## Build with O1 optimization. \
+		## Run `make clean` when switching optimziation levels
+o1: CXXFLAGS+=-O1
+o1: $(EXECUTABLE)
 
-o:
-	g++ newton.cpp f.cpp -lpthread -lX11 -std=c++14 -fopenmp -O1
+o2:		## Build with O2 optimization.
+o2: CXXFLAGS+=-O2
+o2: $(EXECUTABLE)
 
-oo:
-	g++ newton.cpp f.cpp -lpthread -lX11 -std=c++14 -fopenmp -O2
+o3:		## Build with O3 optimization.
+o3: CXXFLAGS+=-O3
+o3: $(EXECUTABLE)
 
-ooo:
-	g++ newton.cpp f.cpp -lpthread -lX11 -std=c++14 -fopenmp -O3
