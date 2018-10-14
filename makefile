@@ -2,8 +2,8 @@
 
 CXX=g++
 CXXFLAGS=-lpthread -lX11 -std=c++14 -fopenmp
-DEPS = src/function.h
-OBJ = bin/function.o bin/generator.o
+DEPS = src/function.h src/config.h
+OBJ = bin/function.o bin/generator.o bin/config.o
 EXECUTABLE = generator.out
 O_LEVEL = 
 

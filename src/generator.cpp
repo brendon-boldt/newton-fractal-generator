@@ -9,6 +9,7 @@
 #include <algorithm>
 
 #include "function.h"
+#include "config.h"
 
 //using namespace cimg_library;
 using namespace std;
@@ -21,21 +22,6 @@ using namespace std;
 
 
 typedef std::complex<double> C;
-
-struct CONFIG {
-	int iters;
-	double limit;
-	int height;
-	int width;
-	double center_x;
-	double center_y;
-	double scale;
-	std::complex<double> step;
-	double delta;
-	double color_scale;
-	double color_range;
-	double color_power;
-};
 
 // This is slow, but it is being used for short lists
 //function<bool (C, C)> make_c_lt(double delta) {
@@ -326,20 +312,9 @@ void plot(int type, CONFIG & c, string filename) {
 
 int main() {
 	// 0 - still image, 1 - animation
-	int type;
-	cin >> type;
-
-	CONFIG c;
-	cin >>
-		c.iters >>
-		c.limit >> c.delta >>
-		c.width >> c.height >>
-		c.scale >>
-		c.center_x >> c.center_y >>
-		c.color_range;
-	double x,y;
-	cin >> x >> y;
-	c.step = C(x,y);
+	
+	int type = 0;
+	auto c = readConfig("src/default.cfg");
 
 	switch (type) {
 	case 0: {
