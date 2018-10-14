@@ -7,11 +7,11 @@ OBJ = bin/function.o bin/generator.o bin/config.o
 EXECUTABLE = generator.out
 O_LEVEL = 
 
-help:		## Show this help.
-	@fgrep -h "##" $(MAKEFILE_LIST) | fgrep -v fgrep | sed -e 's/\\$$//' | sed -e 's/##//'
-
 make:		## Build executable with no flags
 make: $(EXECUTABLE)
+
+help:		## Show this help.
+	@fgrep -h "##" $(MAKEFILE_LIST) | fgrep -v fgrep | sed -e 's/\\$$//' | sed -e 's/##//'
 
 bin/%.o: src/%.cpp $(DEPS)
 	$(CXX) -c -o $@ $< $(CXXFLAGS)
