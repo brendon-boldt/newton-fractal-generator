@@ -314,7 +314,7 @@ int main() {
 	// 0 - still image, 1 - animation
 	
 	int type = 0;
-	auto c = readConfig("src/default.cfg");
+	auto c = readConfig("default.cfg");
 
 	switch (type) {
 	case 0: {

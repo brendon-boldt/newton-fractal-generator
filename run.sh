@@ -1,3 +1,3 @@
 #!/bin/bash
 
-./generator.out < config
+./generator.out
