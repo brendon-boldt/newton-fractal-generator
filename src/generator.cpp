@@ -96,6 +96,10 @@ double getY(const CONFIG & c, int j) {
 	return c.center_y - c.scale * ((double) j/c.height - 0.5);
 }
 
+inline bool cmp(const C & x, const C & y, const double & delta) {
+    return abs(x-y) < delta;
+}
+
 vector<C> findRoots(const CONFIG & c) {
 	mutex mtx;
 
@@ -127,10 +131,14 @@ vector<C> findRoots(const CONFIG & c) {
 				break;
 			}
 		}
-		if (!root_found) {
+		// Verify that value is indeed a root
+		if (!root_found && abs(f(z)) < c.delta) {
 			mtx.lock();
 			roots.push_back(z);
 			mtx.unlock();
+		} else {
+		    // TODO Add code that keeps track of false roots which can
+		    // help speed up convergence.
 		}
 	}
 	// Side effect of of parallelizing the above loop is
@@ -205,7 +213,8 @@ void plot(int type, CONFIG & c, string filename) {
 	vector<C> roots = findRoots(c);
 	//sort(roots.begin(), roots.end(), complex_less_than());
 	sort(roots.begin(), roots.end(), make_c_lt(c.delta));
-	/*
+
+	/* Useful for printing out stuff
 	for (auto i : coeffs)
 		cout << i << " ";
 	cout << endl;

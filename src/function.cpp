@@ -7,14 +7,20 @@ typedef std::complex<double> C;
 
 const C a = C(2.0,-1.0);
 const C b = C(1.0,-1.0);
+const C i = C(0.0, 1.0);
+
+/**
+ * Please note:
+ * 	- C++ you must specify 4.0 instead 4 for type reasons (except in pow)
+ */
 
 
 /* Classic
 C f(const C & z) { return pow(z, 3) - 1.0; }
 C fprime(const C & z) { return 3.0 * pow(z, 2); }
  */
-C f(const C & z) 	  { return pow(z, 6) + pow(z, 4) + 2.0 * pow(z, 1) - 1.0 ; }
-C fprime(const C & z) { return 6.0 * pow(z, 5) + 4.0 * pow(z, 3) + 2.0 ; }
+C f(const C & z) 	  { return (z+i)*(z-i)*(z+2.3)*(z-2.3) ; }
+C fprime(const C & z) { return 4.0*pow(z,3)-8.58*z; }
 
 /* Good complex one
 C f(const C & z) 	  { return pow(z, 6) + pow(z, 4) + 2.0 * pow(z, 1) - 1.0 ; }
